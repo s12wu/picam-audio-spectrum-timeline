@@ -1,0 +1,580 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <title>Meisentimeline</title>
+        <style>
+        canvas {
+            position:absolute;
+            top:0;
+            left:0;
+            z-index:-1;
+            width: 100%;
+            height: 100%;
+            padding: 0;
+            margin: 0;
+        }
+        body {
+            padding: 0;
+            margin: 0;
+        }
+
+        .modal {
+            display: none; /* Hidden by default */
+            position: fixed; /* Stay in place */
+            z-index: 1; /* Sit on top */
+            left: 0;
+            top: 0;
+            width: 100%; /* Full width */
+            height: 100%; /* Full height */
+            overflow: auto; /* Enable scroll if needed */
+            background-color: rgb(0,0,0); /* Fallback color */
+            background-color: rgba(0,0,0,0.4); /* Black w/ opacity */
+        }
+
+        /* Modal Content/Box */
+        .modal-content {
+            background-color: #202020;
+            margin: auto;
+            padding: 20px;
+            border: 1px solid #888;
+            width: 50%;
+            min-width: 700px;
+        }
+
+        /* The Close Button */
+        .close {
+            color: #aaa;
+            float: right;
+            font-size: 28px;
+            font-weight: bold;
+        }
+
+        .close:hover,
+        .close:focus {
+            color: black;
+            text-decoration: none;
+            cursor: pointer;
+        }
+        </style>
+    </head>
+    <body onresize="sizechange()">
+        <button style="position:absolute;" onclick="tilerefresh()">Force data refresh</button> <br>
+        <button style="position:absolute;" onclick="tocurrent()">Go to current time</button>
+        <canvas></canvas>
+
+        <!-- Video playing pop-up -->
+        <div id="modal" class="modal">
+            <div class="modal-content">
+                <span class="close">&times;</span>
+                <video id="video" style="width: 100%;" controls preload></video>
+            </div>
+        </div>
+        <script src="jquery.js"></script>
+        <script>
+
+function roundNumber(number, multiple) {return Math.round(number / multiple) * multiple;}
+
+// Set up modal pop-up
+var modal = document.getElementById("modal");
+var closebtn = document.getElementsByClassName("close")[0];
+var video = document.getElementById("video");
+
+// Set up the canvas
+var canvas = document.querySelector('canvas');
+canvas.width = window.innerWidth;
+canvas.height = window.innerHeight;
+var ctx = canvas.getContext('2d');
+
+var center_x = Math.floor(canvas.width / 2); // helper to save the x coordinate of screen center
+
+var timeline_x = 200;
+
+var imageheight = (canvas.height - timeline_x) - 60;
+var imagewidth = 300;
+
+var images_to_the_left = []; //[0] is center, higher idx = more left
+var images_to_the_right = []; //[0] is center (yes, duplicate), higher idx=more
+
+//Default Zoom level: 120 seconds per 300px tile.
+var secondsPerTile = 120;
+
+var fg_color = "white";
+var bg_color = "black";
+
+var centertimestamp = Date.now() / 1000;
+centertimestamp = roundNumber(centertimestamp, secondsPerTile);
+
+var imgloadts = Math.floor(Date.now() / 1000); //unique id generated from timestamp.
+                //The ID is added as an argument (not used by PHP) to img.src
+                //When changed, the browser won't use the old cached images anymore
+
+var pan=0; //shift inside the center [0] image, 0 means center of image is in center of screen,
+           // -imagewidth/2 to +imagewidth/2
+var panning = false;
+var startX = 0;
+var startPan = 0;
+
+var audio = new Audio();
+var audioplaying = false;
+var audioplaying_idx = 0;
+var loading = false;
+
+//preload hourglass loading icon
+var hourglass_icon = new Image();
+hourglass_icon.src = 'hourglass.png';
+
+var eventlist = [];
+var thumbnaillist = [];
+function refresh_eventlist(){
+    $.ajax({
+        url:'events.txt?id=' + imgloadts,
+        success: function (data){
+            var lines = data.split('\n');
+            eventlist = [];
+            thumbnaillist = [];
+
+            for (line of lines) {
+                if (!line == "") { //empty line?
+                    var parts = line.split(' ');
+                    eventlist.push(parts);
+
+                    var thumbnail = new Image();
+                    thumbnail.src = "cam/media/" + parts[2] + ".mp4.v" + parts[2].substring(3, 7) + ".th.jpg";
+                    console.log("cam/media/" + parts[2] + ".mp4.v" + parts[2].substring(3, 7) + ".th.jpg");
+                    thumbnaillist.push(thumbnail);
+                }
+            }
+        }
+    });
+}
+
+
+function loadImages_left(){
+    images_to_the_left = [];
+    var x = center_x;
+    var idx = 0;
+    while (x > 0 - imagewidth){
+        //We need to add another image
+        var img_timestamp = centertimestamp - idx*secondsPerTile;
+        var image = new Image();
+        image.src = 'imagegen.php?ts=' + img_timestamp + '&h=' + imageheight + '&zoom=' + secondsPerTile/2 + '&imgid=' + imgloadts;
+        console.log('imagegen.php?ts=' + img_timestamp + '&h=' + imageheight + '&zoom=' + secondsPerTile/2 + '&imgid=' + imgloadts);
+        image.onload = draw; //schedule canvas redraw when this image is loaded
+
+        images_to_the_left.push(image);
+
+        idx++;
+        x -= imagewidth;
+    }
+}
+
+function loadImages_right(){
+    images_to_the_right = [];
+    var x = center_x;
+    var idx = 0;
+    while (x < canvas.width + imagewidth){
+        //We need to add another image
+        var img_timestamp = centertimestamp + idx*secondsPerTile;
+        var image = new Image();
+        image.src = 'imagegen.php?ts=' + img_timestamp + '&h=' + imageheight + '&zoom=' + secondsPerTile/2 + '&imgid=' + imgloadts;
+        console.log('imagegen.php?ts=' + img_timestamp + '&h=' + imageheight + '&zoom=' + secondsPerTile/2 + '&imgid=' + imgloadts);
+        image.onload = draw; //schedule canvas redraw when this image is loaded
+
+        images_to_the_right.push(image);
+
+        idx++;
+        x += imagewidth;
+    }
+}
+
+function tilerefresh(){
+    imgloadts = Math.floor(Date.now() / 1000);
+    refresh_eventlist();
+    loadImages_left();
+    loadImages_right();
+}
+
+tilerefresh();
+
+function tocurrent(){
+    centertimestamp = Date.now() / 1000;
+    centertimestamp = roundNumber(centertimestamp, secondsPerTile);
+    tilerefresh();
+}
+
+function draw(){
+    ctx.fillStyle = bg_color;
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    _draw_images(1);
+    _draw_videoboxes();
+    _draw_timeline();
+}
+
+function zoomindraw(){
+    ctx.fillStyle = bg_color;
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    _draw_videoboxes();
+    _draw_timeline();
+    _draw_images(2);
+}
+function zoomoutdraw(){
+    ctx.fillStyle = bg_color;
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    _draw_videoboxes();
+    _draw_timeline();
+    _draw_images(0.5);
+}
+
+function _draw_timeline(){
+    ctx.lineWidth = "2";
+    ctx.strokeStyle = fg_color;
+    ctx.fillStyle = fg_color;
+    ctx.textAlign = "center";
+
+    ctx.font = "25px sans-serif"
+    var d = new Date(centertimestamp * 1000);
+    var month = d.getMonth() + 1;
+    var day = d.getDate();
+    ctx.fillText((day < 10 ? "0" : "") + day + "." + (month < 10 ? "0" : "") + month + "." + d.getFullYear(), canvas.width/2, 40);
+
+    ctx.font = "20px sans-serif";
+
+    ctx.beginPath();
+    ctx.moveTo(0, timeline_x);
+    ctx.lineTo(canvas.width, timeline_x);
+
+    var x = center_x + pan;
+    while(x > 0 - imagewidth) {
+        ctx.moveTo(x, timeline_x - 10);
+        ctx.lineTo(x, timeline_x + 10);
+
+        var hour = d.getHours();
+        var min = d.getMinutes();
+        var sec = d.getSeconds();
+        var str = (hour < 10 ? "0" : "") + hour + ":" + (min < 10 ? "0" : "") + min
+
+        if (secondsPerTile < 60) { // Zoomed in far enough to show seconds
+            str += ":" + (sec < 10 ? "0" : "") + sec;
+        }
+        ctx.fillText(str, x, timeline_x + 40);
+
+        d.setSeconds(d.getSeconds() - secondsPerTile);
+        x -= imagewidth;
+    }
+
+    x = center_x + pan;
+    d = new Date(centertimestamp * 1000);
+    while (x < canvas.width + imagewidth) {
+        ctx.moveTo(x, timeline_x - 10);
+        ctx.lineTo(x, timeline_x + 10);
+
+        var hour = d.getHours();
+        var min = d.getMinutes();
+        var sec = d.getSeconds();
+        var str = (hour < 10 ? "0" : "") + hour + ":" + (min < 10 ? "0" : "") + min
+
+        if (secondsPerTile < 60) { // Zoomed in far enough to show seconds
+            str += ":" + (sec < 10 ? "0" : "") + sec;
+        }
+        ctx.fillText(str, x, timeline_x + 40);
+
+        d.setSeconds(d.getSeconds() + secondsPerTile);
+        x += imagewidth;
+    }
+
+    ctx.stroke();
+}
+
+function _draw_videoboxes(){
+    ctx.fillStyle = fg_color;
+    ctx.textAlign = "left";
+    ctx.font = "20px sans-serif";
+    ctx.beginPath();
+    for (var idx=0; idx<eventlist.length; idx++) {
+        var start = eventlist[idx][0];
+        var end = eventlist[idx][1];
+        var image = eventlist[idx][2];
+
+        //calculate x position on screen for start and end
+
+        var start_x = pan + center_x + ((start - centertimestamp) / secondsPerTile * imagewidth);
+        var end_x = pan + center_x + ((end - centertimestamp) / secondsPerTile * imagewidth);
+
+        var width = end_x - start_x;
+
+        var y = timeline_x - 120;
+
+        ctx.rect(start_x, y, width, 80);
+
+        if (!thumbnaillist[idx].complete) {
+            ctx.drawImage(hourglass_icon, start_x, y, 106, 80);
+        } else {
+            ctx.drawImage(thumbnaillist[idx], start_x, y, 106, 80);
+        }
+
+        ctx.fillText(eventlist[idx][2], start_x + 120, y+40);
+    }
+    ctx.stroke();
+}
+
+function _draw_images(scale){
+    //draw from center to left
+    var x = center_x;
+    images_to_the_left.forEach(function(image, i) {
+        if (!image.complete) {
+            ctx.drawImage(hourglass_icon, x + pan*scale, canvas.height - imageheight, imagewidth*scale, imageheight);
+        }
+        else {
+            ctx.drawImage(image, x + pan*scale, canvas.height - imageheight, imagewidth*scale, imageheight);
+        }
+
+        x -= imagewidth*scale;
+    });
+
+    //draw from center to right
+    var x = center_x;
+    images_to_the_right.forEach(function(image, i) {
+        if (!image.complete) {
+            ctx.drawImage(hourglass_icon, x + pan*scale, canvas.height - imageheight, imagewidth*scale, imageheight);
+        }
+        else {
+            ctx.drawImage(image, x + pan*scale, canvas.height - imageheight, imagewidth*scale, imageheight);
+        }
+
+        x += imagewidth*scale;
+    });
+}
+
+function draw_spectrum_legend(x, y=0){
+    draw();
+
+    ctx.beginPath();
+    ctx.moveTo(x, canvas.height - imageheight);
+    ctx.lineTo(x, canvas.height);
+
+    ctx.textAlign = "left";
+    ctx.font = "20px sans-serif";
+    ctx.fillText("24 kHz", x+10, canvas.height - imageheight + 10); // Depends on sample rate, here 48000 samples per second
+    ctx.fillText("12 kHz", x+10, canvas.height - imageheight/2);
+    ctx.fillText("0 kHz", x+10, canvas.height - 10);
+
+    // label current cursor position
+    if(y > canvas.height - imageheight){
+        var cursorfreq = Math.round((canvas.height-y) / imageheight * 24);
+        ctx.fillText(cursorfreq + " kHz", x+10, y);
+    }
+
+    if (loading) {
+        ctx.textAlign = "center";
+        ctx.font = "50px monospace";
+        ctx.fillText("Loading...", canvas.width/2, canvas.height - imageheight/2);
+    }
+
+    ctx.stroke();
+}
+
+function play_audio(idx){
+    console.log("Play audio " + idx);
+    var audiofile = eventlist[idx][2];
+    audioplaying_idx = idx;
+
+    audio.src = "/cam/media/" + audiofile + ".flac";
+    audio.ontimeupdate = function() {playing_update_legend()};
+    audio.onended = function() {
+        audioplaying = false;
+        draw();
+    }
+    audio.play();
+    audioplaying = true;
+    loading = true;
+}
+
+function playing_update_legend(){
+    var start_x = pan + center_x + ((eventlist[audioplaying_idx][0] - centertimestamp) / secondsPerTile * imagewidth);
+    var legend_x = start_x + (audio.currentTime / secondsPerTile * imagewidth)
+
+    draw_spectrum_legend(legend_x);
+
+    if (audio.currentTime > 0.1) {
+        loading = false;
+    }
+}
+
+function playing_update_time_on_drag(x){
+    var start_x = pan + center_x + ((eventlist[audioplaying_idx][0] - centertimestamp) / secondsPerTile * imagewidth);
+
+    var difference_px = x - start_x;
+    var difference_sec = difference_px * secondsPerTile / imagewidth;
+
+    audio.currentTime = difference_sec;
+}
+
+function play_video(idx){
+    modal.style.display = "block";
+
+    var videofile = eventlist[idx][2];
+    video.src = "/cam/media/" + videofile + ".mp4";
+}
+
+
+
+// checks if the given position is over a video spectrum and returns its index in the eventlist. -1 if not over any.
+function over_video_spectrum(x, y){
+    if (y > canvas.height - imageheight) {
+        for (var idx=0; idx<eventlist.length; idx++) {
+            var start = eventlist[idx][0];
+            var end = eventlist[idx][1];
+
+            //calculate x position on screen for start and end
+
+            var start_x = pan + center_x + ((start - centertimestamp) / secondsPerTile * imagewidth);
+            var end_x = pan + center_x + ((end - centertimestamp) / secondsPerTile * imagewidth);
+
+            if (x > start_x && x < end_x) {
+                return idx;
+            }
+        }
+    }
+
+    return -1;
+}
+
+function over_video_box(x, y){
+    if (y > timeline_x - 120 && y < timeline_x - 40) {
+        for (var idx=0; idx<eventlist.length; idx++) {
+            var start = eventlist[idx][0];
+            var end = eventlist[idx][1];
+
+            //calculate x position on screen for start and end
+
+            var start_x = pan + center_x + ((start - centertimestamp) / secondsPerTile * imagewidth);
+            var end_x = pan + center_x + ((end - centertimestamp) / secondsPerTile * imagewidth);
+
+            if (x > start_x && x < end_x) {
+                return idx;
+            }
+        }
+    }
+
+    return -1;
+}
+
+canvas.addEventListener('mousedown', function(e) {
+    panning = true;
+    startX = e.clientX;
+    startPan = -pan;
+
+    var videoidx = over_video_spectrum(e.clientX, e.clientY)
+    if (videoidx > -1 && !audioplaying){
+        play_audio(videoidx);
+    }
+    if(videoidx == audioplaying_idx && audioplaying) { // move playing playhead
+        playing_update_time_on_drag(e.clientX);
+    }
+
+    videoidx = over_video_box(e.clientX, e.clientY)
+    if (videoidx > -1){
+        play_video(videoidx);
+    }
+});
+
+canvas.addEventListener('mouseup', function() {
+    panning = false;
+});
+
+canvas.addEventListener('mousemove', function(e) {
+    if (panning) {
+        pan = (e.clientX - startX) - startPan;
+
+        if(pan < -(imagewidth/2)){
+            // We moved more than one image, it's time to load another one to fill in the hole at the very right
+            centertimestamp += secondsPerTile;
+            pan = pan + imagewidth;
+            startPan = startPan - imagewidth;
+
+            var img_timestamp = centertimestamp + (images_to_the_right.length-1) * secondsPerTile;
+            var image = new Image();
+            image.src = 'imagegen.php?ts=' + img_timestamp + '&h=' + imageheight + '&zoom=' + secondsPerTile/2 + '&imgid=' + imgloadts;
+            console.log('imagegen.php?ts=' + img_timestamp + '&h=' + imageheight + '&zoom=' + secondsPerTile/2 + '&imgid=' + imgloadts);
+            image.onload = draw; //schedule canvas redraw when this image is loaded
+
+
+            images_to_the_right.push(image);
+            images_to_the_right.shift();
+
+            var newcenter = images_to_the_right[0];
+
+            images_to_the_left.unshift(newcenter);
+            images_to_the_left.pop();
+        }
+        if(pan > (imagewidth/2)){
+            // We moved more than one image, it's time to load another one to fill in the hole at the very left
+            centertimestamp -= secondsPerTile;
+            pan = pan - imagewidth;
+            startPan = startPan + imagewidth;
+
+            var img_timestamp = centertimestamp - (images_to_the_left.length-1) * secondsPerTile;
+            var image = new Image();
+            image.src = 'imagegen.php?ts=' + img_timestamp + '&h=' + imageheight + '&zoom=' + secondsPerTile/2 + '&imgid=' + imgloadts;
+            console.log('imagegen.php?ts=' + img_timestamp + '&h=' + imageheight + '&zoom=' + secondsPerTile/2 + '&imgid=' + imgloadts);
+            image.onload = draw; //schedule canvas redraw when this image is loaded
+
+
+            images_to_the_left.push(image);
+            images_to_the_left.shift();
+
+            var newcenter = images_to_the_left[0];
+
+            images_to_the_right.unshift(newcenter);
+            images_to_the_right.pop();
+        }
+
+        draw();
+    }
+    else if (over_video_spectrum(e.clientX, e.clientY) > -1){
+        draw_spectrum_legend(e.clientX, e.clientY);
+    }
+});
+
+canvas.addEventListener('wheel', function(e) {
+    console.log(e.deltaY);
+    if(e.deltaY < 0){ //scroll up = zoom in
+        secondsPerTile = Math.floor(secondsPerTile / 2);
+        if(secondsPerTile < 7.5){
+            secondsPerTile = 7.5;
+        }
+        else zoomindraw();
+        loadImages_left();
+        loadImages_right();
+    }
+    if(e.deltaY > 0){ //scroll down = zoom out
+        secondsPerTile = Math.floor(secondsPerTile * 2);
+        if(secondsPerTile > 245760){
+            secondsPerTile = 245760;
+        }
+        else zoomoutdraw();
+        centertimestamp = roundNumber(centertimestamp, secondsPerTile);
+        loadImages_left();
+        loadImages_right();
+    }
+});
+
+closebtn.onclick = function() {
+  modal.style.display = "none";
+  panning = false; // close btn click sometimes starts panning
+}
+
+function sizechange(){
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+    center_x = Math.floor(canvas.width / 2);
+    imageheight = (canvas.height - timeline_x) - 60;
+    loadImages_left();
+    loadImages_right();
+}
+
+setTimeout(draw, 2000);
+
+        </script>
+    </body>
+</html>
