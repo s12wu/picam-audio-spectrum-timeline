@@ -61,10 +61,8 @@ while (($line = fgets($file)) !== false) {
     }
 
 
-    // Check if the given timestamp falls within the range
-    if (($timestamp + $range >= $start && $timestamp + $range <= $end) ||
-        ($timestamp - $range >= $start && $timestamp - $range <= $end) ||
-        ($timestamp - $range <= $start && $timestamp + $range >= $end)) {
+    // Check if the given timestamp falls within the range (don't know why, but it works with 2*$range)
+    if (!($timestamp + 2*$range <= $start || $timestamp - 2*$range > $end)) {
 
         // Convert the start and end timestamps to pixels
         $start_x = ($start - $timestamp + $range) * ($width / (2 * $range)) - $width/2;

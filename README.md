@@ -162,8 +162,6 @@ Only one channel of the stereo recording is retained, but it is losslessly encod
 
 ## TODO
 * When deleting a video using the web interface, it doesn't delete the line from events.txt
-* Sometimes not the whole spectrum is shown, this has someting to do with the check if the video falls in the current tile in `imagegen.php`
-  Temporary fix: uncomment the big if statement and always run the code in it. Problem: very slow because all images are loaded, even those that aren't visible.
 
 ## Conclusion
 I have programmed this timeline for and directly on my RPi Zero watching a bird nesting box. If there is interest, I can create an automatic, convenient installation script. Feel free to give it a star or create an issue if you are interested.
