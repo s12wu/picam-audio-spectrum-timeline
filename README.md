@@ -116,6 +116,12 @@ If you encounter any errors here, try running the web interface with `~/RPi_Cam_
 
 **Set up the timeline**
 
+Install php gd:
+
+```bash
+sudo apt install php-gd
+```
+
 Download the index.html, imagegen.php and hourglass.png files and put them into `/var/www/`
 
 [Download jquery](https://jquery.com/download/) and save it as `/var/www/jquery.js`
