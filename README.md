@@ -110,6 +110,19 @@ What is does:
 * run `MP4Box` to combine the .h264 video recording and the mp3 audio.
 * if there was any error in MP4Box, keep the log file and rename the h264 file so it won't try again.
 
+Open /var/www/cam/config.php and add the following two checks to the deleteFile function:
+```php
+if (file_exists(LBASE_DIR . '/' . MEDIA_PATH . "/$rFile.h264.wav.gz")) {
+    $size += filesize_n(LBASE_DIR . '/' . MEDIA_PATH . "/$rFile.wav.gz");
+    if ($del) unlink(LBASE_DIR . '/' . MEDIA_PATH . "/$rFile.wav.gz");
+}
+if (file_exists(LBASE_DIR . '/' . MEDIA_PATH . "/$rFile.flac")) {
+    $size += filesize_n(LBASE_DIR . '/' . MEDIA_PATH . "/$rFile.flac");
+    if ($del) unlink(LBASE_DIR . '/' . MEDIA_PATH . "/$rFile.flac");
+}
+```
+This will also delete the .wav.gz and .flac files when you delete a video using the web interface.
+
 You can now try to record a video using the web interface. When playing it back, it should have sound in it.
 
 If you encounter any errors here, try running the web interface with `~/RPi_Cam_Web_Interface/debug.sh` and post an issue.
