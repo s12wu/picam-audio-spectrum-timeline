@@ -74,17 +74,15 @@ while (($line = fgets($file)) !== false) {
         while ($addmore == 1) {
             $x = $start_x + ($spectrum_img_list_idx-2) * $spectrum_img_width_at_current_range;
 
-            if (x + $spectrum_img_width_at_current_range > 0) { //would this image even be visible?
+            if (($x + $spectrum_img_width_at_current_range) > 0) { // would this image even be visible?
                 $spectrum_img = LoadJpeg("spectrum/$videoid/" . $spectrum_img_list[$spectrum_img_list_idx]);
                 imagecopyresized($image, $spectrum_img, $x, 0, 0, 0, $spectrum_img_width_at_current_range, $height, imagesx($spectrum_img), imagesy($spectrum_img));
-
-                $spectrum_img_list_idx++;
-
-                if ($x > $width || $spectrum_img_list_idx >= count($spectrum_img_list)) {
-                    $addmore = 0;
-                }
             }
+            $spectrum_img_list_idx++;
 
+            if ($x > $width || $spectrum_img_list_idx >= count($spectrum_img_list)) {
+                $addmore = 0;
+            }
         }
     }
 
