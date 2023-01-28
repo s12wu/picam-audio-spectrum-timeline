@@ -181,6 +181,7 @@ Only one channel of the stereo recording is retained, but it is losslessly encod
 
 ## TODO
 * When deleting a video using the web interface, it doesn't delete the line from events.txt
+* Add a way to stop audio playback (currently you have to wait until the recording is over)
 
 ## Conclusion
 I have programmed this timeline for and directly on my RPi Zero watching a bird nesting box. If there is interest, I can create an automatic, convenient installation script. Feel free to give it a star or create an issue if you are interested.
