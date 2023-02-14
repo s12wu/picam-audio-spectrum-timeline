@@ -4,7 +4,9 @@
 
 Creates a HTML/JS timeline of video captured by a Raspberry Pi camera, along with a corresponding audio spectrum.
 
-TODO: Demonstration video
+
+https://user-images.githubusercontent.com/90598549/218772634-a0e6b661-2104-4bd3-ad4d-f49c4aa36a09.mp4
+
 
 It works in combination with the [RPi Cam Web Interface](https://github.com/silvanmelchior/RPi_Cam_Web_Interface).
 Using the `start_vid.sh` and `env_vid.sh` macros, it gets "informed" about video start end end times, which are just stored in the `events.txt` file.
