@@ -59,7 +59,9 @@
     </head>
     <body onresize="sizechange()">
         <button style="position:absolute;" onclick="tilerefresh()">Force data refresh</button> <br>
-        <button style="position:absolute;" onclick="tocurrent()">Go to current time</button>
+        <button style="position:absolute;" onclick="tocurrent()">Go to current time</button> <br>
+        <button style="position:absolute; display:none;" id="audiostop_btn" onclick="play_audio_stop()">Stop audio playback</button>
+
         <canvas></canvas>
 
         <!-- Video playing pop-up -->
@@ -78,6 +80,9 @@ function roundNumber(number, multiple) {return Math.round(number / multiple) * m
 var modal = document.getElementById("modal");
 var closebtn = document.getElementsByClassName("close")[0];
 var video = document.getElementById("video");
+
+//Get stop audio playback button (hidden at beginning)
+var audiostop_btn = $("#audiostop_btn"); //using jQuery for simple .show() and .hide() functions
 
 // Set up the canvas
 var canvas = document.querySelector('canvas');
@@ -382,11 +387,15 @@ function play_audio(idx){
     audio.ontimeupdate = function() {playing_update_legend()};
     audio.onended = function() {
         audioplaying = false;
+
+        audiostop_btn.hide();
         draw();
     }
     audio.play();
     audioplaying = true;
     loading = true;
+
+    audiostop_btn.show();
 }
 
 function playing_update_legend(){
@@ -408,6 +417,17 @@ function playing_update_time_on_drag(x){
 
     audio.currentTime = difference_sec;
 }
+
+function play_audio_stop(){
+    console.log("audio stop");
+    audio.pause();
+
+    audioplaying = false;
+    audiostop_btn.hide();
+
+    draw();
+}
+
 
 function play_video(idx){
     modal.style.display = "block";
