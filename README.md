@@ -14,6 +14,11 @@ Using the `start_vid.sh` and `env_vid.sh` macros, it gets "informed" about video
 The spectrum is generated using Python and Scipy.
 Audio is stored as FLAC to preserve the very high frequencies (above 15kHz). I'm using for my bird box in which the (blue tit) chicks make very high-pitched sounds, which (I hope) will be interesting to analyse.
 
+Video boxes are grouped when zoomed out to declutter the timeline:
+
+![chunk_screenshot](https://user-images.githubusercontent.com/90598549/224546479-67bcc485-6175-4165-a74f-e594b08f74de.png)
+
+
 ## Usage
 Click and drag to pan.
 
@@ -188,7 +193,8 @@ Only one channel of the stereo recording is retained, but it is losslessly encod
 * The video boxes and their labels don't look good when zoomed out, especially if there are many videos in a short period of time:
   ![todo screenshot](https://user-images.githubusercontent.com/90598549/224535690-8ca7f204-0045-4e5a-b14e-f100f306ae48.png)
   The thumbnails and captions are then outside the actual video rectangle.
-  I'm thinking of some sort of grouping that, when zoomed out, replaces the individual boxes with a number for how many "would be here", similar to how many map websites do it.
+  
+  ~~I'm thinking of some sort of grouping that, when zoomed out, replaces the individual boxes with a number for how many "would be here", similar to how many map websites do it.~~ Grouping done, still need to improve the sticking out labels - see screenshot up top.
 
 
 ## Conclusion
