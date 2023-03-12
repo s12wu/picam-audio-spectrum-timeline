@@ -85,15 +85,108 @@ function _draw_timeline(){
     ctx.stroke();
 }
 
+var cluster = true;
+
+// Clustering of video boxes to clean up the mess when zoomed out
+function _cluster_videoboxes(){
+    clustered_eventlist = []
+    for (let i = 0; i < eventlist.length; i++) {
+        let innerArray = [];
+        for (let j = 0; j < eventlist[i].length; j++) {
+            innerArray.push(eventlist[i][j]);
+        }
+        clustered_eventlist.push(innerArray);
+    }
+
+    //We need the possibility to remove the thumbnails for the removed video bexes, so we're making a clustered version of the thumbnaillist too.
+    clustered_thumbnaillist = []
+    for (let i = 0; i < thumbnaillist.length; i++) {
+        let innerArray = [];
+        for (let j = 0; j < thumbnaillist[i].length; j++) {
+            innerArray.push(thumbnaillist[i][j]);
+        }
+        clustered_thumbnaillist.push(innerArray);
+    }
+
+    console.log("Starting to cluster. clustered_eventlist.length is " + clustered_eventlist.length);
+
+
+    // Clustering is done using two conditions, both must be fulfilled:
+    // 1. Width of the video box smaller than threshold (pixels)
+    // 2. Distance to next video box smaller than threshold
+    const width_threshold = 350;
+    const distance_threshold = 100; //Trial and error until it looked good :-P
+
+    var changed = true;
+
+    while(changed){ //Repeat while we still have something to cluster.
+        changed = false;
+
+        for (var idx = 0; idx < clustered_eventlist.length - 1; idx++) {
+            var start = clustered_eventlist[idx][0];
+            var end = clustered_eventlist[idx][1];
+
+            var next_start = clustered_eventlist[idx+1][0];
+
+            //calculate x position on screen for start and end
+            var start_x = pan + center_x + ((start - centertimestamp) / secondsPerTile * imagewidth);
+            var end_x = pan + center_x + ((end - centertimestamp) / secondsPerTile * imagewidth);
+
+            //calculate x position of start of the next event (to check distance later)
+            var next_start_x = pan + center_x + ((next_start - centertimestamp) / secondsPerTile * imagewidth);
+
+
+            var on_screen = start_x > -400 && next_start_x < canvas.width;
+
+            var width_condition = end_x - start_x < width_threshold;
+            var distance_condition = next_start_x - end_x < distance_threshold;
+
+            if (on_screen && width_condition && distance_condition) {
+                // Reuse element idx as the cluster
+                clustered_eventlist[idx][1] = clustered_eventlist[idx + 1][1]; // set the cluster end to the next element's end
+
+                // Update the text
+
+                var idx_is_cluster = clustered_eventlist[idx][2].length < 15; // are they already clusters? 15 as magic number treshold: "2 videos" is shorter than 15 chars, "vi_0127_20230312_104739" is longer
+                var idxp1_is_cluster = clustered_eventlist[idx+1][2].length < 15;
+
+                // parse string to see how many items each cluster had
+                var idx_len = 1; // default value it it was a video instead
+                var idxp1_len = 1;
+
+                if(idx_is_cluster) idx_len = parseInt(clustered_eventlist[idx][2]);
+                if(idxp1_is_cluster) idxp1_len = parseInt(clustered_eventlist[idx+1][2]);
+
+                // set new text with the sum of the two parts
+                clustered_eventlist[idx][2] = (idx_len + idxp1_len).toString() + " videos";
+
+                // remove the next element because it was merged with the current one
+                clustered_eventlist.splice(idx+1, 1);
+                clustered_thumbnaillist.splice(idx+1, 1);
+
+                changed = true;
+            }
+        }
+    }
+
+
+
+    console.log("Finished clustering. clustered_eventlist.length is " + clustered_eventlist.length);
+}
+
+
 function _draw_videoboxes(){
+    //cluster the video boxes
+    _cluster_videoboxes();
+
+
     ctx.fillStyle = fg_color;
-    ctx.textAlign = "left";
     ctx.font = "20px sans-serif";
     ctx.beginPath();
-    for (var idx=0; idx<eventlist.length; idx++) {
-        var start = eventlist[idx][0];
-        var end = eventlist[idx][1];
-        var image = eventlist[idx][2];
+    for (var idx = 0; idx < clustered_eventlist.length; idx++) {
+        var start = clustered_eventlist[idx][0];
+        var end = clustered_eventlist[idx][1];
+        var image = clustered_eventlist[idx][2];
 
         //calculate x position on screen for start and end
 
@@ -106,18 +199,27 @@ function _draw_videoboxes(){
 
         ctx.rect(start_x, y, width, 80);
 
-        try {
-            if (!thumbnaillist[idx].complete) {
-                ctx.drawImage(hourglass_icon, start_x, y, 106, 80);
-            } else {
-                ctx.drawImage(thumbnaillist[idx], start_x, y, 106, 80);
+
+        if (clustered_eventlist[idx][2].length >= 13) { //only draw thumbnail if its a video, not a cluster.
+            try {
+                if (!thumbnaillist[idx].complete) {
+                    ctx.drawImage(hourglass_icon, start_x, y, 106, 80);
+                } else {
+                    ctx.drawImage(thumbnaillist[idx], start_x, y, 106, 80);
+                }
             }
-        }
-        catch(err) {
-            console.log(err.message);
+            catch(err) {
+                console.log(err.message);
+            }
+
+            ctx.textAlign = "left";
+            ctx.fillText(clustered_eventlist[idx][2], start_x + 120, y+40);
+        } else {
+            ctx.textAlign = "center"; // Cluster number is written above the box
+            ctx.fillText(clustered_eventlist[idx][2], (start_x + end_x) / 2, y-10);
         }
 
-        ctx.fillText(eventlist[idx][2], start_x + 120, y+40);
+
     }
     ctx.stroke();
 }

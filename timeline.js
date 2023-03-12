@@ -58,7 +58,11 @@ var hourglass_icon = new Image();
 hourglass_icon.src = 'hourglass.png';
 
 var eventlist = [];
+var clustered_eventlist = [];
+
 var thumbnaillist = [];
+var clustered_thumbnaillist = [];
+
 function refresh_eventlist(){
     $.ajax({
         url:'events.txt?id=' + imgloadts,
