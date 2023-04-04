@@ -2,6 +2,8 @@
  * Responsible for drawing the timeline
  */
 
+const thumbnail_width = 107; //coming from video box height 80px and aspect ratio 4:3
+
 function draw(){
     ctx.fillStyle = bg_color;
     ctx.fillRect(0, 0, canvas.width, canvas.height);
@@ -98,20 +100,8 @@ function _cluster_videoboxes(){
         clustered_eventlist.push(innerArray);
     }
 
-    //We need the possibility to remove the thumbnails for the removed video bexes, so we're making a clustered version of the thumbnaillist too.
-    clustered_thumbnaillist = []
-    for (let i = 0; i < thumbnaillist.length; i++) {
-        let innerArray = [];
-        for (let j = 0; j < thumbnaillist[i].length; j++) {
-            innerArray.push(thumbnaillist[i][j]);
-        }
-        clustered_thumbnaillist.push(innerArray);
-    }
 
-    console.log("Starting to cluster. clustered_eventlist.length is " + clustered_eventlist.length);
-
-
-    // Clustering is done using two conditions, both must be fulfilled:
+    // Clustering is done using two conditions, both must be fulfilled to merge two video boxes
     // 1. Width of the video box smaller than threshold (pixels)
     // 2. Distance to next video box smaller than threshold
     const width_threshold = 350;
@@ -199,23 +189,38 @@ function _draw_videoboxes(){
 
         ctx.rect(start_x, y, width, 80);
 
+        ctx.textAlign = "center";
 
         if (clustered_eventlist[idx][2].length >= 13) { //only draw thumbnail if its a video, not a cluster.
+            //because we removed items from the eventlist while clistering, the index of our video in the original eventlist
+            //and therefore the index in the thumbnaillist differs.
+            //we find it by just searching for the video name in the original list.
+            // https://stackoverflow.com/questions/64735255/javascripct-2d-array-indexof
+
+            var thumbnail_idx = eventlist.findIndex(([starttime, endtime, label]) => label == clustered_eventlist[idx][2]);
+
+            //calculate thumbnail position.
+            //thumbnail size is 106x80
+            //thumbnail is aligned left inside its box, but sticks to the left of the screen if video start is outside of the visible area.
+            var thumbnailpos_x = start_x;
+            if (start_x < 0 && start_x + width > thumbnail_width) thumbnailpos_x = 0;
+            else if (start_x < 0 && start_x + width > 0) thumbnailpos_x = start_x + width - thumbnail_width;
+
+            var this_thumbnail_width = Math.min(width, thumbnail_width);
+
             try {
-                if (!thumbnaillist[idx].complete) {
-                    ctx.drawImage(hourglass_icon, start_x, y, 106, 80);
-                } else {
-                    ctx.drawImage(thumbnaillist[idx], start_x, y, 106, 80);
-                }
+                ctx.drawImage(thumbnaillist[thumbnail_idx].complete ? thumbnaillist[thumbnail_idx] : hourglass_icon,
+                              thumbnailpos_x,
+                              y,
+                              this_thumbnail_width,
+                              80);
             }
             catch(err) {
                 console.log(err.message);
             }
 
-            ctx.textAlign = "left";
-            ctx.fillText(clustered_eventlist[idx][2], start_x + 120, y+40);
+            ctx.fillText(clustered_eventlist[idx][2].substring(0, 7), (start_x + end_x) / 2, y-10);
         } else {
-            ctx.textAlign = "center"; // Cluster number is written above the box
             ctx.fillText(clustered_eventlist[idx][2], (start_x + end_x) / 2, y-10);
         }
 

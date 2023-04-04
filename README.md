@@ -190,11 +190,6 @@ Only one channel of the stereo recording is retained, but it is losslessly encod
 * When deleting a video using the web interface, it doesn't delete the line from events.txt
 * When playing audio: Shift view when playhead leaves visible area
 * Improve design of the control buttons, create a better menu for them. With direct link to RPi Cam Web Interface
-* The video boxes and their labels don't look good when zoomed out, especially if there are many videos in a short period of time:
-  ![todo screenshot](https://user-images.githubusercontent.com/90598549/224535690-8ca7f204-0045-4e5a-b14e-f100f306ae48.png)
-  The thumbnails and captions are then outside the actual video rectangle.
-  
-  ~~I'm thinking of some sort of grouping that, when zoomed out, replaces the individual boxes with a number for how many "would be here", similar to how many map websites do it.~~ Grouping done, still need to improve the sticking out labels - see screenshot up top.
 
 
 ## Conclusion
