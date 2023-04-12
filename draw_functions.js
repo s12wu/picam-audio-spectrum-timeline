@@ -105,7 +105,7 @@ function _cluster_videoboxes(){
     // 1. Width of the video box smaller than threshold (pixels)
     // 2. Distance to next video box smaller than threshold
     const width_threshold = 350;
-    const distance_threshold = 100; //Trial and error until it looked good :-P
+    const distance_threshold = 100;
 
     var changed = true;
 
@@ -158,10 +158,6 @@ function _cluster_videoboxes(){
             }
         }
     }
-
-
-
-    console.log("Finished clustering. clustered_eventlist.length is " + clustered_eventlist.length);
 }
 
 
@@ -192,7 +188,7 @@ function _draw_videoboxes(){
         ctx.textAlign = "center";
 
         if (clustered_eventlist[idx][2].length >= 13) { //only draw thumbnail if its a video, not a cluster.
-            //because we removed items from the eventlist while clistering, the index of our video in the original eventlist
+            //because we removed items from the eventlist while clustering, the index of our video in the original eventlist
             //and therefore the index in the thumbnaillist differs.
             //we find it by just searching for the video name in the original list.
             // https://stackoverflow.com/questions/64735255/javascripct-2d-array-indexof
@@ -216,7 +212,7 @@ function _draw_videoboxes(){
                               80);
             }
             catch(err) {
-                console.log(err.message);
+                //console.log(err.message); (many logs when images aren't loaded yet)
             }
 
             ctx.fillText(clustered_eventlist[idx][2].substring(0, 7), (start_x + end_x) / 2, y-10);
@@ -242,7 +238,7 @@ function _draw_images(scale){
             }
         }
         catch(err) {
-            console.log(err.message);
+            //console.log(err.message);
         }
 
         x -= imagewidth*scale;
@@ -262,7 +258,7 @@ function _draw_images(scale){
             x += imagewidth*scale;
         }
         catch(err) {
-            console.log(err.message);
+            //console.log(err.message);
         }
     });
 }

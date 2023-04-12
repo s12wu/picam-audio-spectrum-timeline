@@ -32,6 +32,7 @@ var images_to_the_right = []; //[0] is center (yes, duplicate), higher idx = mor
 //Default Zoom level: 120 seconds per 300px tile.
 var secondsPerTile = 120;
 
+// Colors for background and text / lines.
 var fg_color = "white";
 var bg_color = "black";
 
@@ -78,7 +79,7 @@ function refresh_eventlist(){
 
                     var thumbnail = new Image();
                     thumbnail.src = "cam/media/" + parts[2] + ".mp4.v" + parts[2].substring(3, 7) + ".th.jpg";
-                    console.log("cam/media/" + parts[2] + ".mp4.v" + parts[2].substring(3, 7) + ".th.jpg");
+
                     thumbnaillist.push(thumbnail);
                 }
             }
@@ -96,7 +97,7 @@ function loadImages_left(){
         var img_timestamp = centertimestamp - idx*secondsPerTile;
         var image = new Image();
         image.src = 'imagegen.php?ts=' + img_timestamp + '&h=' + imageheight + '&zoom=' + secondsPerTile/2 + '&imgid=' + imgloadts;
-        console.log('imagegen.php?ts=' + img_timestamp + '&h=' + imageheight + '&zoom=' + secondsPerTile/2 + '&imgid=' + imgloadts);
+
         image.onload = draw; //schedule canvas redraw when this image is loaded
 
         images_to_the_left.push(image);
@@ -115,7 +116,7 @@ function loadImages_right(){
         var img_timestamp = centertimestamp + idx*secondsPerTile;
         var image = new Image();
         image.src = 'imagegen.php?ts=' + img_timestamp + '&h=' + imageheight + '&zoom=' + secondsPerTile/2 + '&imgid=' + imgloadts;
-        console.log('imagegen.php?ts=' + img_timestamp + '&h=' + imageheight + '&zoom=' + secondsPerTile/2 + '&imgid=' + imgloadts);
+
         image.onload = draw; //schedule canvas redraw when this image is loaded
 
         images_to_the_right.push(image);
@@ -284,6 +285,7 @@ canvas.addEventListener('wheel', function(e) {
 
 closebtn.onclick = function() {
     modal.style.display = "none";
+    video.pause();
     panning = false; // close btn click sometimes starts panning
 }
 
